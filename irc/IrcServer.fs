@@ -10,7 +10,7 @@ open System.Text
 open System.Security.Cryptography.X509Certificates
 
 type Client = { client:TcpClient; hostName:string }
-type public IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertificateValidationCallback:RemoteCertificateValidationCallback, userCertificateSelectionCallback:LocalCertificateSelectionCallback, encryptionPolicy:EncryptionPolicy, encoding:Encoding) as this = class
+type internal IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertificateValidationCallback:RemoteCertificateValidationCallback, userCertificateSelectionCallback:LocalCertificateSelectionCallback, encryptionPolicy:EncryptionPolicy, encoding:Encoding) as this = class
     let TcpConnect (serverName:string):Async<Client option> =
         async{
             try
@@ -48,10 +48,22 @@ type public IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertifica
             do! StartRecieve()
         }
     do Async.Start <| StartRecieve()
+    member this.HostName = server.hostName
     [<CLIEvent>]
     member this.MessageRecievedEvent = messageRecievedEvent.Publish
     member this.WriteMessage(message:string) = 
         writer.WriteLine(message)
+    static member DefaultRemoteCertificateValidationCallback (s:obj) (c:X509Certificate) (ch:X509Chain) (sslPolicyErrors:SslPolicyErrors) = 
+        match sslPolicyErrors with
+        | SslPolicyErrors.None -> true
+        | _ -> false
+    static member DefaultLocalCertificateSelectionCallback (s:obj) (th:string) (lc:X509CertificateCollection) (rc:X509Certificate) (ac:string[]) =
+        match lc with
+        | null -> null
+        | _ -> match ac with
+                | null -> null
+                | _ -> lc.Cast<X509Certificate>().FirstOrDefault(fun (i:X509Certificate) ->                                                                        
+                                                                    Array.exists (fun (a:string) -> a.Equals(i.Issuer, StringComparison.Ordinal)) ac)
     interface IDisposable with
         member this.Dispose() =
             stream.Dispose()
@@ -66,17 +78,8 @@ type public IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertifica
         new IrcServer(
             [| serverName |],
             port,
-            new RemoteCertificateValidationCallback((fun (s:obj) (c:X509Certificate) (ch:X509Chain) (sslPolicyErrors:SslPolicyErrors) -> 
-                match sslPolicyErrors with
-                | SslPolicyErrors.None -> true
-                | _ -> false)),
-            new LocalCertificateSelectionCallback((fun (s:obj) (th:string) (lc:X509CertificateCollection) (rc:X509Certificate) (ac:string[]) ->
-                match lc with
-                | null -> null
-                | _ -> match ac with
-                       | null -> null
-                       | _ -> lc.Cast<X509Certificate>().FirstOrDefault(fun (i:X509Certificate) ->                                                                        
-                                                                            Array.exists (fun (a:string) -> a.Equals(i.Issuer, StringComparison.Ordinal)) ac))),
+            new RemoteCertificateValidationCallback(IrcServer.DefaultRemoteCertificateValidationCallback),
+            new LocalCertificateSelectionCallback(IrcServer.DefaultLocalCertificateSelectionCallback),
             EncryptionPolicy.RequireEncryption,
             Encoding.GetEncoding(65001))
 end
