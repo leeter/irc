@@ -40,11 +40,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Enums.fs" />
-    <Compile Include="Module1.fs" />
-    <None Include="Script.fsx" />
     <Compile Include="MessageRecievedEventArgs.fs" />
-    <Compile Include="Commands.fs" />
     <Compile Include="IrcServer.fs" />
+    <Compile Include="Messages.fs" />
+    <Compile Include="Utils.fs" />
+    <None Include="Script.fsx" />
+    <Compile Include="Commands.fs" />
     <Compile Include="CommandResult.fs" />
     <Compile Include="IrcClient.fs" />
   </ItemGroup>

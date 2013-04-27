@@ -9,6 +9,12 @@ open System.Net.Security
 open System.Text
 open System.Security.Cryptography.X509Certificates
 
+type public IIrcServer = interface
+    abstract member WriteMessage : string -> unit
+    abstract member MessageRecievedEvent : IEvent<MessageRecievedEventArgs>
+    abstract member HostName : string with get
+end
+
 type Client = { client:TcpClient; hostName:string }
 type internal IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertificateValidationCallback:RemoteCertificateValidationCallback, userCertificateSelectionCallback:LocalCertificateSelectionCallback, encryptionPolicy:EncryptionPolicy, encoding:Encoding) as this = class
     let TcpConnect (serverName:string):Async<Client option> =
@@ -48,11 +54,12 @@ type internal IrcServer(serverNames:IEnumerable<string>, port:int, remoteCertifi
             do! StartRecieve()
         }
     do Async.Start <| StartRecieve()
-    member this.HostName = server.hostName
-    [<CLIEvent>]
-    member this.MessageRecievedEvent = messageRecievedEvent.Publish
-    member this.WriteMessage(message:string) = 
-        writer.WriteLine(message)
+    interface IIrcServer with
+        member this.HostName = server.hostName
+    //[<CLIEvent>]
+        member this.MessageRecievedEvent = messageRecievedEvent.Publish
+        member this.WriteMessage(message:string) = 
+            writer.WriteLine(message)
     static member DefaultRemoteCertificateValidationCallback (s:obj) (c:X509Certificate) (ch:X509Chain) (sslPolicyErrors:SslPolicyErrors) = 
         match sslPolicyErrors with
         | SslPolicyErrors.None -> true
