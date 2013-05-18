@@ -7,7 +7,16 @@ open System.Net
 open System.Net.Sockets
 open System.Net.Security
 open System.Text
+open System.Text.RegularExpressions
 open System.Security.Cryptography.X509Certificates
+
+type public NickName(nick:string) = class
+    let nickRegex = Regex("^[\w\[\]\`\\\^\{\|\}][\w\[\]\`\\\^\{\|\}]{0,8}$", RegexOptions.ECMAScript ||| RegexOptions.CultureInvariant)
+    do if not (nickRegex.IsMatch nick)
+       then raise (ArgumentException("Nick contains invalid characters", "nick"))
+    member this.Value : string = nick
+end
+
 
 type public IIrcServer = interface
     abstract member WriteMessage : string -> unit
